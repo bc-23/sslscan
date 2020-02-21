@@ -1669,16 +1669,20 @@ void outputCipher(struct sslCheckOptions *options, SSL *ssl, const char *cleanSs
 }
 
 // Test a cipher...
-int testCipher(struct sslCheckOptions *options, const SSL_METHOD *sslMethod)
+int testCipher(struct sslCheckOptions *options, const SSL_METHOD *sslMethod, char **hsts)
 {
     // Variables...
+    int buffer_size = 64;
+    if (options->hsts == true && *hsts == NULL) {
+      buffer_size = 512;
+    }
     int cipherStatus = 0;
     int status = true;
     int socketDescriptor = 0;
     SSL *ssl = NULL;
     BIO *cipherConnectionBio = NULL;
     char requestBuffer[256];
-    char buffer[64];
+    char buffer[buffer_size];
     char http_code[64];
     int resultSize = 0;
     int cipherbits = -1;
@@ -1750,6 +1754,13 @@ int testCipher(struct sslCheckOptions *options, const SSL_METHOD *sslMethod)
                         resultSize = SSL_read(ssl, buffer, sizeof(buffer) - 1);
                         if (resultSize > 9)
                         {
+                            if (options->hsts == true && *hsts == NULL) {
+                                char *hsts_ptr = strstr(buffer, "Strict-Transport-Security:");
+                                char *hsts_end_ptr = strchr(hsts_ptr, '\n');
+                                if (hsts_ptr != NULL && hsts_end_ptr != NULL) {
+                                    *hsts = strndup(hsts_ptr, hsts_end_ptr - hsts_ptr);
+                                }
+                            }
                             int loop = 0;
                             for (loop = 9; (loop < sizeof(buffer) - 1) && (buffer[loop] != 0) && (buffer[loop] != '\r') && (buffer[loop] != '\n'); loop++)
                             { }
@@ -3255,6 +3266,7 @@ int testConnection(struct sslCheckOptions *options)
 int testProtocolCiphers(struct sslCheckOptions *options, const SSL_METHOD *sslMethod)
 {
     int status;
+    char *hsts = NULL;
     status = true;
 
     if (sslMethod == TLSv1_3_client_method())
@@ -3285,7 +3297,7 @@ int testProtocolCiphers(struct sslCheckOptions *options, const SSL_METHOD *sslMe
 
             // Test the cipher
             if (status == true)
-                status = testCipher(options, sslMethod);
+                status = testCipher(options, sslMethod, &hsts);
 
             // Free CTX Object
             FREE_CTX(options->ctx);
@@ -3297,6 +3309,15 @@ int testProtocolCiphers(struct sslCheckOptions *options, const SSL_METHOD *sslMe
             printf_error("%sERROR: Could not create CTX object.%s\n", COL_RED, RESET);
             return false;
         }
+    }
+
+    if (options->hsts == true) {
+      printf("\n  %sHSTS Header:%s\n", COL_BLUE, RESET);
+      if (hsts == NULL) {
+         printf("No HSTS header found\n");
+      } else {
+         printf("%s\n", hsts);
+      }
     }
 
     /* Test the missing ciphersuites. */
@@ -3901,6 +3922,10 @@ int main(int argc, char *argv[])
         else if (strcmp("--http", argv[argLoop]) == 0)
             options.http = 1;
 
+        // HSTS check
+        else if (strcmp("--hsts", argv[argLoop]) == 0)
+            options.hsts = 1;
+
         // RDP Preamble...
         else if (strcmp("--rdp", argv[argLoop]) == 0)
             options.rdp = 1;
@@ -4117,6 +4142,7 @@ int main(int argc, char *argv[])
             printf("  %s--starttls-psql%s      STARTTLS setup for PostgreSQL\n", COL_GREEN, RESET);
             printf("  %s--xmpp-server%s        Use a server-to-server XMPP handshake\n", COL_GREEN, RESET);
             printf("  %s--http%s               Test a HTTP connection\n", COL_GREEN, RESET);
+            printf("  %s--hsts%s               Test a HSTS header\n", COL_GREEN, RESET);
             printf("  %s--rdp%s                Send RDP preamble before starting scan\n", COL_GREEN, RESET);
             printf("  %s--bugs%s               Enable SSL implementation bug work-arounds\n", COL_GREEN, RESET);
             printf("  %s--timeout=<sec>%s      Set socket timeout. Default is 3s\n", COL_GREEN, RESET);

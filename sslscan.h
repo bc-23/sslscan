@@ -173,6 +173,7 @@ struct sslCheckOptions
     int targets;
     int sslbugs;
     int http;
+    int hsts;
     int rdp;
     int verbose;
     int cipher_details;
@@ -351,7 +352,7 @@ int testfallback(struct sslCheckOptions *, const SSL_METHOD *);
 int testHeartbleed(struct sslCheckOptions *, const SSL_METHOD *);
 int testSupportedGroups(struct sslCheckOptions *options);
 int testSignatureAlgorithms(struct sslCheckOptions *options);
-int testCipher(struct sslCheckOptions *, const SSL_METHOD *);
+int testCipher(struct sslCheckOptions *, const SSL_METHOD *, char **);
 int testMissingCiphers(struct sslCheckOptions *options, unsigned int version);
 int testProtocolCiphers(struct sslCheckOptions *, const SSL_METHOD *);
 int testConnection(struct sslCheckOptions *);
