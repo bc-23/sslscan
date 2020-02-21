@@ -2277,21 +2277,24 @@ int ocspRequest(struct sslCheckOptions *options)
     if (socketDescriptor != 0)
     {
         // Setup Context Object...
-        if( options->sslVersion == ssl_v2 || options->sslVersion == ssl_v3) {
+        if( options->check_sslVersion == -1) {
+          options->check_sslVersion = options->sslVersion;
+        }
+        if( options->check_sslVersion == ssl_v2 || options->check_sslVersion == ssl_v3) {
             printf_verbose("sslMethod = SSLv23_method()");
             sslMethod = SSLv23_method();
         }
 #if OPENSSL_VERSION_NUMBER >= 0x10001000L
-        else if( options->sslVersion == tls_v11) {
+        else if( options->check_sslVersion == tls_v11) {
             printf_verbose("sslMethod = TLSv1_1_method()");
             sslMethod = TLSv1_1_method();
         }
-        else if( options->sslVersion == tls_v12) {
+        else if( options->check_sslVersion == tls_v12) {
             printf_verbose("sslMethod = TLSv1_2_method()");
             sslMethod = TLSv1_2_method();
         }
 #endif
-        else if( options->sslVersion == tls_v13) {
+        else if( options->check_sslVersion == tls_v13) {
             printf_verbose("sslMethod = TLSv1_3_method()");
             sslMethod = TLSv1_3_method();
         }
@@ -2589,20 +2592,23 @@ int showCertificate(struct sslCheckOptions *options)
     {
 
         // Setup Context Object...
-        if( options->sslVersion == ssl_v2 || options->sslVersion == ssl_v3) {
+        if( options->check_sslVersion == -1) {
+          options->check_sslVersion = options->sslVersion;
+        }
+        if( options->check_sslVersion == ssl_v2 || options->check_sslVersion == ssl_v3) {
             printf_verbose("sslMethod = SSLv23_method()");
             sslMethod = SSLv23_method();
         }
 #if OPENSSL_VERSION_NUMBER >= 0x10001000L
-        else if( options->sslVersion == tls_v11) {
+        else if( options->check_sslVersion == tls_v11) {
             printf_verbose("sslMethod = TLSv1_1_method()");
             sslMethod = TLSv1_1_method();
         }
-        else if( options->sslVersion == tls_v12) {
+        else if( options->check_sslVersion == tls_v12) {
             printf_verbose("sslMethod = TLSv1_2_method()");
             sslMethod = TLSv1_2_method();
         }
-        else if( options->sslVersion == tls_v13) {
+        else if( options->check_sslVersion == tls_v13) {
             printf_verbose("sslMethod = TLSv1_3_method()");
             sslMethod = TLSv1_3_method();
         }
@@ -3040,20 +3046,23 @@ int showTrustedCAs(struct sslCheckOptions *options)
     {
 
         // Setup Context Object...
-        if( options->sslVersion == ssl_v2 || options->sslVersion == ssl_v3) {
+        if( options->check_sslVersion == -1) {
+          options->check_sslVersion = options->sslVersion;
+        }
+        if( options->check_sslVersion == ssl_v2 || options->check_sslVersion == ssl_v3) {
             printf_verbose("sslMethod = SSLv23_method()");
             sslMethod = SSLv23_method();
         }
 #if OPENSSL_VERSION_NUMBER >= 0x10001000L
-        else if( options->sslVersion == tls_v11) {
+        else if( options->check_sslVersion == tls_v11) {
             printf_verbose("sslMethod = TLSv1_1_method()");
             sslMethod = TLSv1_1_method();
         }
-        else if( options->sslVersion == tls_v12) {
+        else if( options->check_sslVersion == tls_v12) {
             printf_verbose("sslMethod = TLSv1_2_method()");
             sslMethod = TLSv1_2_method();
         }
-        else if( options->sslVersion == tls_v13) {
+        else if( options->check_sslVersion == tls_v13) {
             printf_verbose("sslMethod = TLSv1_3_method()");
             sslMethod = TLSv1_3_method();
         }
@@ -3336,6 +3345,9 @@ int testHost(struct sslCheckOptions *options)
     // Check if SSLv2 is enabled.
     if ((options->sslVersion == ssl_all) || (options->sslVersion == ssl_v2)) {
       if (runSSLv2Test(options)) {
+        if (options->check_sslVersion != -1) {
+          options->check_sslVersion = ssl_v2;
+        }
         printf("SSLv2     %senabled%s\n", COL_RED, RESET);
         printf_xml("  <protocol type=\"ssl\" version=\"2\" enabled=\"1\" />\n");
       } else {
@@ -3347,6 +3359,9 @@ int testHost(struct sslCheckOptions *options)
     // Check if SSLv3 is enabled.
     if ((options->sslVersion == ssl_all) || (options->sslVersion == ssl_v3)) {
       if (runSSLv3Test(options)) {
+        if (options->check_sslVersion != -1) {
+          options->check_sslVersion = ssl_v3;
+        }
 	printf("SSLv3     %senabled%s\n", COL_RED, RESET);
 	printf_xml("  <protocol type=\"ssl\" version=\"3\" enabled=\"1\" />\n");
       } else {
@@ -3358,6 +3373,9 @@ int testHost(struct sslCheckOptions *options)
     /* Test if TLSv1.0 through TLSv1.3 is supported.  This allows us to skip unnecessary tests later.  Print status of each protocol when verbose flag is set. */
     if ((options->sslVersion == ssl_all) || (options->sslVersion == tls_all) || (options->sslVersion == tls_v10)) {
       if ((options->tls10_supported = checkIfTLSVersionIsSupported(options, TLSv1_0))) {
+        if (options->check_sslVersion != -1) {
+          options->check_sslVersion = tls_v10;
+        }
 	printf("TLSv1.0   %senabled%s\n", COL_YELLOW, RESET);
 	printf_xml("  <protocol type=\"tls\" version=\"1.0\" enabled=\"1\" />\n");
       } else {
@@ -3368,6 +3386,9 @@ int testHost(struct sslCheckOptions *options)
 
     if ((options->sslVersion == ssl_all) || (options->sslVersion == tls_all) || (options->sslVersion == tls_v11)) {
       if ((options->tls11_supported = checkIfTLSVersionIsSupported(options, TLSv1_1))) {
+        if (options->check_sslVersion != -1) {
+          options->check_sslVersion = tls_v11;
+        }
 	printf("TLSv1.1   enabled\n");
 	printf_xml("  <protocol type=\"tls\" version=\"1.1\" enabled=\"1\" />\n");
       } else {
@@ -3378,6 +3399,9 @@ int testHost(struct sslCheckOptions *options)
 
     if ((options->sslVersion == ssl_all) || (options->sslVersion == tls_all) || (options->sslVersion == tls_v12)) {
       if ((options->tls12_supported = checkIfTLSVersionIsSupported(options, TLSv1_2))) {
+        if (options->check_sslVersion != -1) {
+          options->check_sslVersion = tls_v12;
+        }
 	printf("TLSv1.2   enabled\n");
 	printf_xml("  <protocol type=\"tls\" version=\"1.2\" enabled=\"1\" />\n");
       } else {
@@ -3388,6 +3412,9 @@ int testHost(struct sslCheckOptions *options)
 
     if ((options->sslVersion == ssl_all) || (options->sslVersion == tls_all) || (options->sslVersion == tls_v13)) {
       if ((options->tls13_supported = checkIfTLSVersionIsSupported(options, TLSv1_3))) {
+        if (options->check_sslVersion != -1) {
+          options->check_sslVersion = tls_v13;
+        }
 	printf("TLSv1.3   %senabled%s\n", COL_GREEN, RESET);
 	printf_xml("  <protocol type=\"tls\" version=\"1.3\" enabled=\"1\" />\n");
       } else {
@@ -3653,6 +3680,7 @@ int main(int argc, char *argv[])
     options.sleep = 0;
 
     options.sslVersion = ssl_all;
+    options.check_sslVersion = -1;
 
 #ifdef _WIN32
     /* Attempt to enable console colors.  This succeeds in Windows 10.  For other
@@ -3876,6 +3904,10 @@ int main(int argc, char *argv[])
         else if (strcmp("--tlsall", argv[argLoop]) == 0)
             options.sslVersion = tls_all;
 
+        // Use highest TLS version for certificate checks
+        else if (strcmp("--tlshighest", argv[argLoop]) == 0)
+            options.check_sslVersion = options.sslVersion;
+
         // Use a server-to-server XMPP handshake
         else if (strcmp("--xmpp-server", argv[argLoop]) == 0)
             options.xmpp_server = true;
@@ -4092,6 +4124,7 @@ int main(int argc, char *argv[])
             printf("  %s--tls13%s              Only check TLSv1.3 ciphers\n", COL_GREEN, RESET);
 #endif
             printf("  %s--tlsall%s             Only check TLS ciphers (all versions)\n", COL_GREEN, RESET);
+            printf("  %s--tlshighest%s         Use highest found SSL/TLS version for certificate checks\n", COL_GREEN, RESET);
             printf("  %s--ocsp%s               Request OCSP response from server\n", COL_GREEN, RESET);
             printf("  %s--pk=<file>%s          A file containing the private key or a PKCS#12 file\n", COL_GREEN, RESET);
             printf("                       containing a private key/certificate pair\n");

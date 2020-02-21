@@ -170,6 +170,7 @@ struct sslCheckOptions
     int starttls_psql;
     int xmpp_server;
     int sslVersion;
+    int check_sslVersion;
     int targets;
     int sslbugs;
     int http;
