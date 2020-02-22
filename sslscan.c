@@ -1827,6 +1827,142 @@ int testCipher(struct sslCheckOptions *options, const SSL_METHOD *sslMethod)
     return status;
 }
 
+int checkHttpHeaders(struct sslCheckOptions *options, const SSL_METHOD *sslMethod)
+{
+    // Variables...
+    int cipherStatus = 0;
+    int status = true;
+    int socketDescriptor = 0;
+    int resultSize = 0;
+    SSL *ssl = NULL;
+    BIO *cipherConnectionBio = NULL;
+    char requestBuffer[256];
+    char buffer[512];
+
+    memset(requestBuffer, 0, sizeof(requestBuffer));
+    memset(buffer, 0, sizeof(buffer));
+
+    printf("\n  %sHTTP Headers:%s\n", COL_BLUE, RESET);
+    printf_xml("  <http>\n");
+
+    // Connect to host
+    socketDescriptor = tcpConnect(options);
+    if (socketDescriptor != 0)
+    {
+        // Setup Context Object...
+        options->ctx = new_CTX(sslMethod);
+        if (options->ctx != NULL)
+        {
+
+            if (SSL_CTX_set_cipher_list(options->ctx, CIPHERSUITE_LIST_ALL) != 0)
+            {
+                // Load Certs if required...
+                if ((options->clientCertsFile != 0) || (options->privateKeyFile != 0))
+                    status = loadCerts(options);
+
+                if (status == true)
+                {
+                    // Create SSL object...
+                    ssl = new_SSL(options->ctx);
+                    if (ssl != NULL)
+                    {
+                        // Connect socket and BIO
+                        cipherConnectionBio = BIO_new_socket(socketDescriptor, BIO_NOCLOSE);
+
+                        // Connect SSL and BIO
+                        SSL_set_bio(ssl, cipherConnectionBio, cipherConnectionBio);
+
+#if OPENSSL_VERSION_NUMBER >= 0x0090806fL && !defined(OPENSSL_NO_TLSEXT)
+                        // Based on http://does-not-exist.org/mail-archives/mutt-dev/msg13045.html
+                        // TLS Virtual-hosting requires that the server present the correct
+                        // certificate; to do this, the ServerNameIndication TLS extension is used.
+                        // If TLS is negotiated, and OpenSSL is recent enough that it might have
+                        // support, and support was enabled when OpenSSL was built, mutt supports
+                        // sending the hostname we think we're connecting to, so a server can send
+                        // back the correct certificate.
+                        // NB: finding a server which uses this for IMAP is problematic, so this is
+                        // untested.  Please report success or failure!  However, this code change
+                        // has worked fine in other projects to which the contributor has added it,
+                        // or HTTP usage.
+                        SSL_set_tlsext_host_name (ssl, options->sniname);
+#endif
+
+                        // Connect SSL over socket
+                        cipherStatus = SSL_connect(ssl);
+                        if (cipherStatus == 1)
+                        {
+                            // Create request buffer...
+                            snprintf(requestBuffer, sizeof(requestBuffer) - 1, "GET / HTTP/1.0\r\nUser-Agent: SSLScan\r\nHost: %s\r\n\r\n", options->host);
+
+                            // HTTP Get...
+                            SSL_write(ssl, requestBuffer, strlen(requestBuffer));
+                            memset(buffer, 0, sizeof(buffer));
+                            resultSize = SSL_read(ssl, buffer, sizeof(buffer) - 1);
+                            if (resultSize > 0)
+                            {
+                                char *token = NULL;
+                                token = strtok(buffer, "\n");
+                                while (token)
+                                {
+                                    char *colon = strchr(token, ':');
+                                    if (colon != NULL)
+                                    {
+                                        char *name = strndup(token, colon - token);
+                                        colon += 2; // skip colon and space
+                                        char *end = strchr(colon, '\r');
+                                        size_t value_len = token - colon;
+                                        if (end != NULL)
+                                        {
+                                            value_len = end - colon;
+                                        }
+                                        char *value = strndup(colon, value_len);
+                                        printf("%s: %s\n", name, value);
+                                        printf_xml("    <http-header name=\"%s\" value=\"%s\" />\n", name, value);
+                                    }
+                                    token = strtok(NULL, "\n");
+                                }
+                            }
+                            // Disconnect SSL over socket
+                            SSL_shutdown(ssl);
+                        }
+                        // Free SSL object
+                        FREE_SSL(ssl);
+                    }
+                    else
+                    {
+                        status = false;
+                        printf("%s    ERROR: Could not create SSL object.%s\n", COL_RED, RESET);
+                    }
+                }
+            }
+            else
+            {
+                status = false;
+                printf("%s    ERROR: Could not set cipher.%s\n", COL_RED, RESET);
+            }
+
+            // Free CTX Object
+            FREE_CTX(options->ctx);
+        }
+        // Error Creating Context Object
+        else
+        {
+            status = false;
+            printf_error("%sERROR: Could not create CTX object.%s\n", COL_RED, RESET);
+        }
+
+        // Disconnect from host
+        close(socketDescriptor);
+    }
+
+    // Could not connect
+    else
+        status = false;
+    printf_xml("  </http>\n");
+
+    return status;
+}
+
 int checkCertificateProtocol(struct sslCheckOptions *options, const SSL_METHOD *sslMethod)
 {
     int status = true;
@@ -3552,6 +3688,12 @@ int testHost(struct sslCheckOptions *options)
     // Enumerate signature algorithms.
     if (options->signature_algorithms && options->tls13_supported)
         testSignatureAlgorithms(options);
+
+    // check HTTP headers
+    if (status == true && options->http == true)
+    {
+        status = checkHttpHeaders(options, TLS_client_method());
+    }
 
     // Print certificate
     if (status == true && options->showCertificate == true)

@@ -357,6 +357,7 @@ int testProtocolCiphers(struct sslCheckOptions *, const SSL_METHOD *);
 int testConnection(struct sslCheckOptions *);
 int testHost(struct sslCheckOptions *);
 int loadCerts(struct sslCheckOptions *);
+int checkHttpHeaders(struct sslCheckOptions *, const SSL_METHOD *);
 int checkCertificateProtocols(struct sslCheckOptions *, const SSL_METHOD *);
 int checkCertificate(struct sslCheckOptions *, const SSL_METHOD *);
 int showCertificate(struct sslCheckOptions *);
